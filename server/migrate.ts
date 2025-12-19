@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { db } from './db';
 import { up } from './migrations/001_create_users_table';
 

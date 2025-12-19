@@ -65,34 +65,6 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // Test endpoint to manually trigger user sync (for development)
-  app.post("/api/test/sync-user", async (req, res) => {
-    try {
-      const { clerkId, email, firstName, lastName, imageUrl } = req.body;
-
-      // This simulates what the webhook does
-      const { UserService } = await import("./services/userService");
-
-      const existingUser = await UserService.getUserByClerkId(clerkId);
-      if (existingUser) {
-        return res.json({ message: "User already exists", user: existingUser });
-      }
-
-      const newUser = await UserService.createUser({
-        id: clerkId,
-        clerkId,
-        email,
-        firstName: firstName || null,
-        lastName: lastName || null,
-        imageUrl: imageUrl || null,
-      });
-
-      res.json({ message: "User synced successfully", user: newUser });
-    } catch (error) {
-      console.error("Test sync error:", error);
-      res.status(500).json({ error: "Failed to sync user" });
-    }
-  });
 
   // Add more routes as needed
 

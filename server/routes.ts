@@ -12,11 +12,11 @@ export async function registerRoutes(app: Express) {
     try {
       const { UserService } = await import("./services/userService");
 
-      // Get user data from Clerk JWT token
-      const clerkUser = req.user; // This will be set by Clerk middleware
+      // Get user data from request body (sent by frontend)
+      const clerkUser = req.body.user;
 
       if (!clerkUser || !clerkUser.id) {
-        return res.status(401).json({ error: "No authenticated user" });
+        return res.status(400).json({ error: "No user data provided" });
       }
 
       // Check if user already exists
@@ -44,16 +44,16 @@ export async function registerRoutes(app: Express) {
   });
 
   // Get current user data from database
-  app.get("/api/auth/me", async (req, res) => {
+  app.post("/api/auth/me", async (req, res) => {
     try {
       const { UserService } = await import("./services/userService");
 
-      const clerkUser = req.user;
-      if (!clerkUser || !clerkUser.id) {
-        return res.status(401).json({ error: "No authenticated user" });
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "No user ID provided" });
       }
 
-      const user = await UserService.getUserByClerkId(clerkUser.id);
+      const user = await UserService.getUserByClerkId(userId);
       if (!user) {
         return res.status(404).json({ error: "User not found in database" });
       }

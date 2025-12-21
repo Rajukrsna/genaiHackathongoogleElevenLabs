@@ -18,10 +18,19 @@ export interface DatabaseUser {
 export const useUserSync = () => {
   const { user, isSignedIn } = useUser();
   const queryClient = useQueryClient();
+  const hasAttemptedSync = React.useRef(false);
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post('/auth/sync-user');
+      const response = await apiClient.post('/auth/sync-user', {
+        user: {
+          id: user.id,
+          email_addresses: user.emailAddresses,
+          first_name: user.firstName,
+          last_name: user.lastName,
+          image_url: user.imageUrl,
+        }
+      });
       return response.data;
     },
     onSuccess: (data) => {
@@ -31,20 +40,26 @@ export const useUserSync = () => {
     },
     onError: (error) => {
       console.error('❌ Failed to sync user:', error);
+      // Reset the flag on error so it can try again later if needed
+      hasAttemptedSync.current = false;
     },
   });
 
-  // Auto-sync when user signs in
+  // Auto-sync when user signs in - only once per session
   React.useEffect(() => {
-    if (isSignedIn && user && !syncMutation.isPending) {
+    if (isSignedIn && user && !hasAttemptedSync.current) {
       // Check if we already have user data in cache
       const cachedUser = queryClient.getQueryData(['user']);
       if (!cachedUser) {
         console.log('🔄 Auto-syncing user to database...');
+        hasAttemptedSync.current = true;
         syncMutation.mutate();
+      } else {
+        // If we have cached user, mark as attempted to prevent future calls
+        hasAttemptedSync.current = true;
       }
     }
-  }, [isSignedIn, user, syncMutation, queryClient]);
+  }, [isSignedIn, user?.id]); // Only depend on isSignedIn and user.id
 
   return {
     syncUser: syncMutation.mutate,
@@ -55,15 +70,17 @@ export const useUserSync = () => {
 
 // Hook to get current user from database
 export const useDatabaseUser = () => {
-  const { isSignedIn } = useUser();
+  const { user, isSignedIn } = useUser();
 
   return useQuery({
     queryKey: ['user'],
     queryFn: async () => {
-      const response = await apiClient.get('/auth/me');
+      const response = await apiClient.post('/auth/me', {
+        userId: user?.id
+      });
       return response.data.user as DatabaseUser;
     },
-    enabled: isSignedIn, // Only fetch if user is signed in
+    enabled: isSignedIn && !!user, // Only fetch if user is signed in
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
   });

@@ -1,6 +1,6 @@
 import { Route, Switch } from 'wouter';
-import { Navbar, ProtectedRoute } from './components';
-import { HomePage, DashboardPage, ProfilePage } from './pages';
+import { ProtectedRoute } from './components';
+import { HomePage, DashboardPage, ProfilePage, CallPage } from './pages';
 import { useInitializeApiClient } from './lib/api';
 import { useUserSync } from './hooks';
 
@@ -13,8 +13,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
       <Switch>
         {/* Public Route */}
         <Route path="/" component={HomePage} />
@@ -29,6 +27,12 @@ function App() {
         <Route path="/profile">
           <ProtectedRoute>
             <ProfilePage />
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/call">
+          <ProtectedRoute>
+            <CallPage />
           </ProtectedRoute>
         </Route>
 

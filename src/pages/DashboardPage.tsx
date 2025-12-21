@@ -1,11 +1,14 @@
 import { useUser } from '@clerk/clerk-react';
 import { useDataList } from '@/hooks';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Phone } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user } = useUser();
   const { data: dataList, isLoading, error } = useDataList({ page: 1, pageSize: 10 });
+  const [, setLocation] = useLocation();
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -20,13 +23,17 @@ export default function DashboardPage() {
                   Welcome back, {user?.firstName || 'User'}!
                 </h1>
                 <p className="text-gray-600 text-lg">
-                  Here's what's happening with your account today.
+                  VocalAid - Help customers communicate with ease
                 </p>
               </div>
               <div className="hidden md:block">
-                <div className="w-20 h-20 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
-                  <span className="text-3xl">👋</span>
-                </div>
+                <button
+                  onClick={() => setLocation('/call')}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:shadow-lg transition-all flex items-center gap-2"
+                >
+                  <Phone className="w-5 h-5" />
+                  Start Call
+                </button>
               </div>
             </div>
           </CardContent>

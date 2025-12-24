@@ -1,4 +1,4 @@
-import { Volume2 } from 'lucide-react';
+import { Volume2, Undo2 } from 'lucide-react';
 
 export interface Message {
   id: string;
@@ -24,13 +24,41 @@ export function IncomingCard({ message }: IncomingCardProps) {
 interface OutgoingCardProps {
   message: string;
   isSecondary?: boolean;
+  canUndo?: boolean;
+  onUndo?: () => void;
 }
 
-export function OutgoingCard({ message, isSecondary = false }: OutgoingCardProps) {
+export function OutgoingCard({ message, isSecondary = false, canUndo = false, onUndo }: OutgoingCardProps) {
+  return (
+    <div className="bg-[#111827] flex flex-col gap-1.5 items-end px-4 py-3 rounded-[13px] w-full">
+      <p className={`text-lg text-right whitespace-pre-wrap w-full ${isSecondary ? 'text-[#9ca3af]' : 'text-white'}`}>
+        {message}
+      </p>
+      {canUndo && (
+        <button
+          onClick={onUndo}
+          className="flex items-center justify-center p-1 w-12 h-12 hover:bg-[#1f2937] rounded-full transition-colors"
+          aria-label="Undo this response"
+        >
+          <Undo2 className="w-4 h-4 text-[#9ca3af]" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+interface IntroMessageProps {
+  message?: string;
+}
+
+export function IntroMessage({ message }: IntroMessageProps) {
+  const defaultMessage = 
+    "Hello. I'm using an assistive communication app to respond. Please speak one sentence at a time and pause so I can reply accurately. Thank you for your patience.";
+
   return (
     <div className="bg-[#111827] flex items-center justify-center px-4 py-3 rounded-[13px] w-full">
-      <p className={`text-lg whitespace-pre-wrap ${isSecondary ? 'text-[#9ca3af]' : 'text-white'}`}>
-        {message}
+      <p className="text-[#9ca3af] text-lg text-right whitespace-pre-wrap">
+        {message || defaultMessage}
       </p>
     </div>
   );

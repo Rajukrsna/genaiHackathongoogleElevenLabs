@@ -20,6 +20,79 @@ console.log('🔑 ElevenLabs API Key present:', !!process.env.ELEVENLABS_API_KEY
 console.log('🔑 Gemini API Key present:', !!process.env.GEMINI_API_KEY);
 
 /**
+ * Generate repair prompts based on communication failure type
+ * These are dynamic, AI-generated prompts that vary each time
+ */
+async function generateRepairPrompts(failureType: string, originalText: string): Promise<string[]> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  
+  let promptContext = '';
+  
+  switch (failureType) {
+    case 'no_speech':
+      promptContext = 'The system detected silence or no clear speech. Generate 2 polite repair prompts asking the caller to speak up or repeat. Make them sound natural and varied, not scripted.';
+      break;
+    case 'noise':
+      promptContext = 'The system detected heavy background noise. Generate 2 polite repair prompts asking the caller to move to a quieter location or reduce background noise. Make them conversational and empathetic.';
+      break;
+    case 'gibberish':
+    case 'multiple_voices':
+      promptContext = 'The system detected multiple overlapping voices or unclear speech. Generate 2 polite repair prompts asking the caller to speak one at a time or more clearly. Make them friendly and understanding.';
+      break;
+    default:
+      promptContext = 'The system had trouble understanding. Generate 2 polite repair prompts asking for clarification.';
+  }
+
+  const prompt = `You are helping a non-verbal person handle communication issues during a phone call.
+  
+Scenario: ${promptContext}
+Original unclear input: "${originalText}"
+
+Generate 2 natural, conversational repair prompts (10-20 words each) that vary slightly in tone and phrasing. 
+These should sound human and empathetic, NOT like pre-recorded messages.
+One should be more direct, one more apologetic.
+
+Format as a JSON array:
+["prompt1", "prompt2"]
+
+Only output the JSON array.`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    const jsonMatch = responseText.match(/\[.*\]/s);
+    
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+  } catch (error) {
+    console.error('Error generating repair prompts:', error);
+  }
+
+  // Fallback repair prompts with variety
+  const fallbackPrompts: Record<string, string[]> = {
+    no_speech: [
+      "I'm sorry, I couldn't hear you. Could you please speak a bit louder?",
+      "Hello? I'm having trouble hearing you right now. Can you try again?"
+    ],
+    noise: [
+      "There's quite a bit of background noise. Could you move to a quieter spot?",
+      "I'm having difficulty hearing you clearly due to the noise around you. Is there a quieter place you could speak from?"
+    ],
+    gibberish: [
+      "I didn't quite catch that. Could you please speak one sentence at a time?",
+      "I'm having trouble understanding. Could you speak a bit more slowly and clearly?"
+    ],
+    multiple_voices: [
+      "I'm hearing multiple voices. Could one person speak at a time, please?",
+      "It sounds like there are several people talking. Could you speak individually, please?"
+    ]
+  };
+
+  return fallbackPrompts[failureType] || fallbackPrompts.no_speech;
+}
+
+/**
  * Convert speech to text using Eleven Labs
  */
 export async function speechToText(req: Request, res: Response) {
@@ -107,8 +180,18 @@ export async function speechToText(req: Request, res: Response) {
     fs.unlinkSync(multerReq.file.path);
     console.log('🧹 [STT] Cleaned up uploaded file');
 
-    // Extract just the text from the transcription object
-    const transcribedText = transcription.text || '';
+    // Extract text from the transcription response
+    let transcribedText = '';
+    
+    if (typeof transcription === 'object' && transcription !== null) {
+      // Handle different response types from the API
+      if ('text' in transcription) {
+        transcribedText = (transcription as any).text || '';
+      } else if ('audio' in transcription && 'text' in (transcription as any).audio) {
+        transcribedText = (transcription as any).audio.text || '';
+      }
+    }
+    
     console.log('📝 [STT] Extracted text:', `"${transcribedText}"`);
     console.log('✅ [STT] Speech-to-text conversion completed successfully');
 
@@ -139,23 +222,77 @@ export async function speechToText(req: Request, res: Response) {
 
 /**
  * Process text with Gemini AI to detect intent and generate reply options
+ * Includes edge case handling for communication failures
  */
 export async function processIntent(req: Request, res: Response) {
   console.log('🤖 [INTENT] Starting intent processing');
 
   try {
-    const { text, conversationContext } = req.body;
-    console.log('📥 [INTENT] Received request:', { text, hasContext: !!conversationContext });
+    const { text, conversationContext, isFirstMessage } = req.body;
+    console.log('📥 [INTENT] Received request:', { text, hasContext: !!conversationContext, isFirstMessage });
 
     if (!text) {
       console.log('❌ [INTENT] No text provided');
       return res.status(400).json({ error: 'No text provided' });
     }
 
-    console.log('🔄 [INTENT] Calling Gemini API...');
+    console.log('🔄 [INTENT] Calling Gemini API for input quality check...');
 
     // Initialize Gemini model
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    // First, check input quality and detect communication failures
+    const qualityCheckPrompt = `Analyze this speech input for communication quality issues.
+Input: "${text}"
+
+Classify the input quality and respond with a JSON object:
+{
+  "quality": "good" | "no_speech" | "noise" | "gibberish" | "multiple_voices",
+  "confidence": 0.0 to 1.0,
+  "reason": "brief explanation"
+}
+
+Guidelines:
+- "good": Clear, understandable speech with normal content
+- "no_speech": Empty, very short, or meaningless sounds
+- "noise": Heavy background noise evident in transcription
+- "gibberish": Incoherent, fragmented, or nonsensical words
+- "multiple_voices": Evidence of multiple speakers or overlapping speech
+
+Only output the JSON object.`;
+
+    const qualityResult = await model.generateContent(qualityCheckPrompt);
+    const qualityResponse = qualityResult.response.text();
+    
+    console.log('🔍 Quality check response:', qualityResponse);
+
+    let qualityCheck;
+    try {
+      const jsonMatch = qualityResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        qualityCheck = JSON.parse(jsonMatch[0]);
+      }
+    } catch (parseError) {
+      console.log('⚠️ Failed to parse quality check, assuming good quality');
+      qualityCheck = { quality: 'good', confidence: 0.8, reason: 'Fallback' };
+    }
+
+    console.log('📊 Quality assessment:', qualityCheck);
+
+    // Handle communication failures with repair prompts
+    if (qualityCheck.quality !== 'good' && qualityCheck.confidence > 0.6) {
+      console.log('🚨 Communication failure detected:', qualityCheck.quality);
+      
+      const repairPrompts = await generateRepairPrompts(qualityCheck.quality, text);
+      
+      return res.json({
+        originalText: text,
+        replies: repairPrompts,
+        isCommunicationFailure: true,
+        failureType: qualityCheck.quality,
+        failureReason: qualityCheck.reason
+      });
+    }
 
     // Create a prompt with conversation context for better replies
     const contextPrompt = conversationContext 

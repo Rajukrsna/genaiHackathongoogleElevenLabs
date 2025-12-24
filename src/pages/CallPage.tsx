@@ -4,9 +4,10 @@ import {
   CallerID,
   ListeningIndicator,
   TextInputBox,
-  PauseButton,
   IncomingCard,
   IntentDetection,
+  IntroMessage,
+  OutgoingCard,
 } from '../components/call';
 import { useContinuousRecorder } from '../hooks/useContinuousRecorder';
 import * as callService from '../lib/api/callService';
@@ -15,17 +16,29 @@ import { useToast } from '../hooks/use-toast';
 interface Message {
   id: string;
   text: string;
-  type: 'incoming' | 'outgoing';
+  type: 'incoming' | 'outgoing' | 'intro';
   timestamp: Date;
+}
+
+interface SuggestionState {
+  suggestions: string[];
+  isCommunicationFailure: boolean;
+  failureType?: string;
+  failureReason?: string;
 }
 
 export default function CallPage() {
   const [callStatus, setCallStatus] = useState<'incoming' | 'active' | 'ended'>('incoming');
   const [isMuted, setIsMuted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionState, setSuggestionState] = useState<SuggestionState>({
+    suggestions: [],
+    isCommunicationFailure: false,
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   const [conversationContext, setConversationContext] = useState<string>('');
+  const [isFirstMessage, setIsFirstMessage] = useState(true);
+  const [lastOutgoingMessage, setLastOutgoingMessage] = useState<Message | null>(null);
   
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -75,12 +88,24 @@ export default function CallPage() {
       );
 
       // Process with AI to get reply suggestions
-      const replies = await callService.processIntent(transcribedText, conversationContext);
-      setSuggestions(replies);
+      const response = await callService.processIntent(transcribedText, conversationContext, isFirstMessage);
+      
+      setSuggestionState({
+        suggestions: response.replies,
+        isCommunicationFailure: response.isCommunicationFailure || false,
+        failureType: response.failureType,
+        failureReason: response.failureReason,
+      });
+
+      if (isFirstMessage) {
+        setIsFirstMessage(false);
+      }
 
       toast({
-        title: 'Replies ready!',
-        description: 'Select a reply option',
+        title: response.isCommunicationFailure ? 'Communication Issue Detected' : 'Replies ready!',
+        description: response.isCommunicationFailure 
+          ? 'Select a repair prompt to help the caller' 
+          : 'Select a reply option',
       });
     } catch (error) {
       console.error('Error processing speech:', error);
@@ -92,7 +117,7 @@ export default function CallPage() {
     } finally {
       setIsProcessing(false);
     }
-  }, [conversationContext, toast]);
+  }, [conversationContext, toast, isFirstMessage]);
 
   const handleSpeechDetected = useCallback(() => {
     console.log('👂 Caller is speaking...');
@@ -109,6 +134,15 @@ export default function CallPage() {
 
   const handleAcceptCall = async () => {
     setCallStatus('active');
+    
+    // Add intro message when call starts
+    const introMsg: Message = {
+      id: 'intro-' + Date.now(),
+      text: "Hello. I'm using an assistive communication app to respond. Please speak one sentence at a time and pause so I can reply accurately. Thank you for your patience.",
+      type: 'intro',
+      timestamp: new Date(),
+    };
+    setMessages([introMsg]);
     
     // Auto-start continuous listening
     await startListening();
@@ -144,6 +178,7 @@ export default function CallPage() {
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, newMessage]);
+    setLastOutgoingMessage(newMessage);
 
     // Update conversation context
     setConversationContext((prev) => 
@@ -193,8 +228,43 @@ export default function CallPage() {
   };
 
   const handleSelectReply = async (reply: string) => {
-    setSuggestions([]); // Clear suggestions after selection
+    setSuggestionState({ suggestions: [], isCommunicationFailure: false }); // Clear suggestions after selection
     await handleSendMessage(reply);
+  };
+
+  const handleUndoLastMessage = () => {
+    if (!lastOutgoingMessage) return;
+
+    // Remove the last outgoing message
+    setMessages(prev => prev.filter(m => m.id !== lastOutgoingMessage.id));
+    
+    // Restore the conversation context (remove the last "You: " entry)
+    setConversationContext(prev => {
+      const lines = prev.split('\n');
+      const lastYouIndex = lines.map((line, idx) => line.startsWith('You:') ? idx : -1)
+        .filter(idx => idx !== -1)
+        .pop();
+      
+      if (lastYouIndex !== undefined) {
+        lines.splice(lastYouIndex, 1);
+      }
+      
+      return lines.join('\n');
+    });
+
+    // Get the last incoming message to restore suggestions
+    const lastIncoming = [...messages].reverse().find(m => m.type === 'incoming');
+    if (lastIncoming) {
+      // Regenerate suggestions for the last incoming message
+      handleRegenerate();
+    }
+
+    setLastOutgoingMessage(null);
+    
+    toast({
+      title: "Message undone",
+      description: "Your last response has been removed",
+    });
   };
 
   const handleRegenerate = async () => {
@@ -214,8 +284,14 @@ export default function CallPage() {
       });
 
       // Process with AI again
-      const replies = await callService.processIntent(lastIncomingMessage.text, conversationContext);
-      setSuggestions(replies);
+      const response = await callService.processIntent(lastIncomingMessage.text, conversationContext, false);
+      
+      setSuggestionState({
+        suggestions: response.replies,
+        isCommunicationFailure: response.isCommunicationFailure || false,
+        failureType: response.failureType,
+        failureReason: response.failureReason,
+      });
 
       toast({
         title: "New replies ready!",
@@ -278,24 +354,31 @@ export default function CallPage() {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-2.5 py-4 space-y-4">
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           <div key={message.id}>
-            {message.type === 'incoming' ? (
+            {message.type === 'intro' ? (
+              <IntroMessage message={message.text} />
+            ) : message.type === 'incoming' ? (
               <IncomingCard message={message.text} />
             ) : (
-              <div className="bg-[#111827] flex items-center justify-center px-4 py-3 rounded-[13px]">
-                <p className="text-white text-base">{message.text}</p>
-              </div>
+              <OutgoingCard 
+                message={message.text}
+                isSecondary={false}
+                canUndo={lastOutgoingMessage?.id === message.id && index === messages.length - 1}
+                onUndo={handleUndoLastMessage}
+              />
             )}
           </div>
         ))}
 
         {/* Intent Detection with Suggestions */}
-        {suggestions.length > 0 && (
+        {suggestionState.suggestions.length > 0 && (
           <IntentDetection
-            suggestions={suggestions}
+            suggestions={suggestionState.suggestions}
             onSelectReply={handleSelectReply}
             onRegenerate={handleRegenerate}
+            isCommunicationFailure={suggestionState.isCommunicationFailure}
+            failureType={suggestionState.failureType}
           />
         )}
       </div>

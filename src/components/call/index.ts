@@ -4,7 +4,7 @@ import { CallerID } from './CallerID';
 import { ListeningIndicator } from './ListeningIndicator';
 import { TextInputBox } from './TextInputBox';
 import { PauseButton } from './PauseButton';
-import { IncomingCard, OutgoingCard } from './MessageCards';
+import { IncomingCard, OutgoingCard, IntroMessage } from './MessageCards';
 import { IntentDetection } from './IntentDetection';
 
 export {
@@ -16,5 +16,6 @@ export {
   PauseButton,
   IncomingCard,
   OutgoingCard,
+  IntroMessage,
   IntentDetection,
 };

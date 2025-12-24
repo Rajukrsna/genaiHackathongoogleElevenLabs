@@ -1,5 +1,13 @@
 import { apiClient } from './client';
 
+interface ProcessIntentResponse {
+  originalText: string;
+  replies: string[];
+  isCommunicationFailure?: boolean;
+  failureType?: string;
+  failureReason?: string;
+}
+
 /**
  * Convert speech audio to text using Eleven Labs
  */
@@ -15,13 +23,17 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
 /**
  * Process text with AI to get reply options
  */
-export async function processIntent(text: string, conversationContext?: string): Promise<string[]> {
-  const response = await apiClient.post<{ originalText: string; replies: string[] }>(
+export async function processIntent(
+  text: string, 
+  conversationContext?: string,
+  isFirstMessage?: boolean
+): Promise<ProcessIntentResponse> {
+  const response = await apiClient.post<ProcessIntentResponse>(
     '/call/process-intent',
-    { text, conversationContext }
+    { text, conversationContext, isFirstMessage }
   );
 
-  return response.data?.replies || [];
+  return response.data || { originalText: text, replies: [] };
 }
 
 /**

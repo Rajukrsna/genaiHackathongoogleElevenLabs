@@ -14,8 +14,8 @@ interface IncomingCardProps {
 
 export function IncomingCard({ message, isLatest = true }: IncomingCardProps) {
   return (
-    <div className="bg-[#111827] flex items-center justify-center px-4 py-3 rounded-[13px] w-full">
-      <p className={`whitespace-pre-wrap ${
+    <div className="bg-[#111827] flex items-center justify-start px-4 py-3 rounded-[13px] w-full">
+      <p className={`text-left whitespace-pre-wrap ${
         isLatest 
           ? 'text-[#e5e7eb] text-2xl' 
           : 'text-[#9ca3af] text-lg'
@@ -65,7 +65,7 @@ export function IntroMessage({ message }: IntroMessageProps) {
     "Hello. I'm using an assistive communication app to respond. Please speak one sentence at a time and pause so I can reply accurately. Thank you for your patience.";
 
   return (
-    <div className="bg-[#111827] flex items-center justify-center px-4 py-3 rounded-[13px] w-full">
+    <div className="bg-[#111827] flex items-center justify-end px-4 py-3 rounded-[13px] w-full">
       <p className="text-[#9ca3af] text-lg text-right whitespace-pre-wrap">
         {message || defaultMessage}
       </p>

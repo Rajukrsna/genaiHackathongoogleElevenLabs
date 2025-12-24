@@ -354,22 +354,38 @@ export default function CallPage() {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-2.5 py-4 space-y-4">
-        {messages.map((message, index) => (
-          <div key={message.id}>
-            {message.type === 'intro' ? (
-              <IntroMessage message={message.text} />
-            ) : message.type === 'incoming' ? (
-              <IncomingCard message={message.text} />
-            ) : (
-              <OutgoingCard 
-                message={message.text}
-                isSecondary={false}
-                canUndo={lastOutgoingMessage?.id === message.id && index === messages.length - 1}
-                onUndo={handleUndoLastMessage}
-              />
-            )}
-          </div>
-        ))}
+        {messages.map((message, index) => {
+          // Determine if this is the latest message of its type
+          const isLatestIncoming = message.type === 'incoming' && 
+            index === messages.map((m, i) => m.type === 'incoming' ? i : -1)
+              .filter(i => i !== -1)
+              .pop();
+          
+          const isLatestOutgoing = message.type === 'outgoing' && 
+            index === messages.map((m, i) => m.type === 'outgoing' ? i : -1)
+              .filter(i => i !== -1)
+              .pop();
+
+          return (
+            <div key={message.id}>
+              {message.type === 'intro' ? (
+                <IntroMessage message={message.text} />
+              ) : message.type === 'incoming' ? (
+                <IncomingCard 
+                  message={message.text}
+                  isLatest={isLatestIncoming}
+                />
+              ) : (
+                <OutgoingCard 
+                  message={message.text}
+                  isLatest={isLatestOutgoing}
+                  canUndo={lastOutgoingMessage?.id === message.id && index === messages.length - 1}
+                  onUndo={handleUndoLastMessage}
+                />
+              )}
+            </div>
+          );
+        })}
 
         {/* Intent Detection with Suggestions */}
         {suggestionState.suggestions.length > 0 && (

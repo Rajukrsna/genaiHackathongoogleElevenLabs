@@ -9,12 +9,17 @@ export interface Message {
 
 interface IncomingCardProps {
   message: string;
+  isLatest?: boolean;
 }
 
-export function IncomingCard({ message }: IncomingCardProps) {
+export function IncomingCard({ message, isLatest = true }: IncomingCardProps) {
   return (
     <div className="bg-[#111827] flex items-center justify-center px-4 py-3 rounded-[13px] w-full">
-      <p className="text-[#e5e7eb] text-2xl whitespace-pre-wrap">
+      <p className={`whitespace-pre-wrap ${
+        isLatest 
+          ? 'text-[#e5e7eb] text-2xl' 
+          : 'text-[#9ca3af] text-lg'
+      }`}>
         {message}
       </p>
     </div>
@@ -23,15 +28,19 @@ export function IncomingCard({ message }: IncomingCardProps) {
 
 interface OutgoingCardProps {
   message: string;
-  isSecondary?: boolean;
+  isLatest?: boolean;
   canUndo?: boolean;
   onUndo?: () => void;
 }
 
-export function OutgoingCard({ message, isSecondary = false, canUndo = false, onUndo }: OutgoingCardProps) {
+export function OutgoingCard({ message, isLatest = true, canUndo = false, onUndo }: OutgoingCardProps) {
   return (
     <div className="bg-[#111827] flex flex-col gap-1.5 items-end px-4 py-3 rounded-[13px] w-full">
-      <p className={`text-lg text-right whitespace-pre-wrap w-full ${isSecondary ? 'text-[#9ca3af]' : 'text-white'}`}>
+      <p className={`text-right whitespace-pre-wrap w-full ${
+        isLatest 
+          ? 'text-white text-lg' 
+          : 'text-[#9ca3af] text-lg'
+      }`}>
         {message}
       </p>
       {canUndo && (

@@ -5,20 +5,22 @@ import { createRoot } from 'react-dom/client';
 // import { queryClient } from './lib/queryClient';
 import App from './App';
 import './index.css';
+import { registerSW } from 'virtual:pwa-register';
 
-// // Get Clerk publishable key from environment
-// const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-// if (!CLERK_PUBLISHABLE_KEY) {
-//   throw new Error('Missing Clerk Publishable Key. Add VITE_CLERK_PUBLISHABLE_KEY to your .env.local file');
-// }
+// Register service worker for PWA auto-update and offline support
+if (import.meta.env.PROD) {
+  registerSW({
+    onNeedRefresh() {
+      console.log('Service worker update available.');
+    },
+    onOfflineReady() {
+      console.log('Service worker installed: app ready for offline use.');
+    }
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {/* <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-      <QueryClientProvider client={queryClient}> */}
-        <App />
-      {/* </QueryClientProvider>
-    </ClerkProvider> */}
+    <App />
   </StrictMode>
 );

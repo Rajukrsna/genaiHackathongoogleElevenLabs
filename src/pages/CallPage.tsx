@@ -152,6 +152,48 @@ export default function CallPage() {
     };
     setMessages([introMsg]);
     
+    // Speak the intro message
+    try {
+      isPlayingResponseRef.current = true;
+      pauseDetection(); // Pause VAD while playing response
+
+      // Convert text to speech
+      const audioDataUrl = await callService.textToSpeech(introMsg.text);
+      
+      // Play the audio
+      if (audioRef.current) {
+        audioRef.current.src = audioDataUrl;
+        await audioRef.current.play();
+        
+        toast({
+          title: "Intro message sent",
+          description: "Playing the intro message to the caller",
+        });
+
+        // Wait for audio to finish
+        await new Promise<void>((resolve) => {
+          if (audioRef.current) {
+            audioRef.current.onended = () => resolve();
+          } else {
+            resolve();
+          }
+        });
+        
+        // Add a small delay after audio ends to avoid picking up tail end
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    } catch (error) {
+      console.error('Error converting intro message to speech:', error);
+      toast({
+        title: "Error",
+        description: 'Failed to play intro message audio',
+        variant: "destructive",
+      });
+    } finally {
+      isPlayingResponseRef.current = false;
+      resumeDetection(); // Resume VAD after response is done
+    }
+    
     // Auto-start continuous listening
     await startListening();
     

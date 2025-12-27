@@ -379,34 +379,37 @@ export default function CallPage() {
 
   return (
     <div className="bg-[#0b1220] min-h-screen w-full flex flex-col relative max-w-md mx-auto">
-      {/* Caller ID */}
-      <CallerID
-        callerName="Customer 1"
-        callerPhone="+91 7895455145"
-        status={callStatus === 'incoming' ? 'incoming' : 'active'}
-        onAccept={handleAcceptCall}
-        onReject={handleRejectCall}
-        onToggleMute={handleToggleMute}
-        isMuted={isMuted}
-      />
+      {/* Fixed Top Navigation */}
+      <div className="sticky top-0 z-20 bg-[#0b1220]">
+        {/* Caller ID */}
+        <CallerID
+          callerName="Customer 1"
+          callerPhone="+91 7895455145"
+          status={callStatus === 'incoming' ? 'incoming' : 'active'}
+          onAccept={handleAcceptCall}
+          onReject={handleRejectCall}
+          onToggleMute={handleToggleMute}
+          isMuted={isMuted}
+        />
 
-      {/* App Bar and Listening Indicator */}
-      <div className="flex flex-col items-start w-full">
-        <AppBar />
-        <ListeningIndicator isListening={!isPaused && callStatus !== 'ended'} />
-        
-        {/* Voice Activity Status */}
-        {isActive && isSpeaking && (
-          <div className="w-full px-4 py-2">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-green-400 text-base">Caller speaking...</span>
+        {/* App Bar and Listening Indicator */}
+        <div className="flex flex-col items-start w-full">
+          <AppBar />
+          <ListeningIndicator isListening={!isPaused && callStatus !== 'ended'} />
+          
+          {/* Voice Activity Status */}
+          {isActive && isSpeaking && (
+            <div className="w-full px-4 py-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-green-400 text-base">Caller speaking...</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Messages Area */}
+      {/* Scrollable Messages Area */}
       <div className="flex-1 overflow-y-auto px-2.5 py-4 space-y-4">
         {messages.map((message, index) => {
           // Determine if this is the latest message of its type
@@ -479,35 +482,35 @@ export default function CallPage() {
       {/* Invisible element to scroll to */}
       <div ref={messagesEndRef} />
 
-      {/* Floating Pause/Play Button */}
-      <button
-        onClick={handlePause}
-        disabled={isProcessing}
-        className="absolute z-10 flex items-center justify-center disabled:opacity-50 transition-colors"
-        style={{
-          bottom: '80px',
-          left: '10px',
-          width: '40px',
-          height: '40px',
-          borderRadius: '13px',
-          padding: '8px',
-          background: '#111827'
-        }}
-        aria-label={isPaused ? "Resume Listening" : "Pause Listening"}
-      >
-        {isPaused ? (
-          <Play className="w-5 h-5 text-[#3B82F6]" />
-        ) : (
-          <Pause className="w-5 h-5 text-[#3B82F6]" />
-        )}
-      </button>
-
-      {/* Bottom Controls */}
-      <div className="sticky bottom-0 left-0 right-0 p-2.5 space-y-2 bg-[#0b1220]">
-        <TextInputBox
-          onSend={handleSendMessage}
-          placeholder="Type message..."
-        />
+      {/* Fixed Bottom Controls */}
+      <div className="sticky bottom-0 left-0 right-0 p-2.5 space-y-2 bg-[#0b1220] z-10">
+        <div className="relative">
+          <TextInputBox
+            onSend={handleSendMessage}
+            placeholder="Type message..."
+          />
+          
+          {/* Pause/Play Button positioned relative to text input */}
+          <button
+            onClick={handlePause}
+            disabled={isProcessing}
+            className="absolute -top-12 left-2 flex items-center justify-center disabled:opacity-50 transition-colors"
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '13px',
+              padding: '8px',
+              background: '#111827'
+            }}
+            aria-label={isPaused ? "Resume Listening" : "Pause Listening"}
+          >
+            {isPaused ? (
+              <Play className="w-5 h-5 text-[#3B82F6]" />
+            ) : (
+              <Pause className="w-5 h-5 text-[#3B82F6]" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Hidden audio element for TTS playback */}

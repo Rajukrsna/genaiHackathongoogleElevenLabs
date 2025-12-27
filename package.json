@@ -12,6 +12,7 @@
     "build:server": "esbuild server/index.ts --platform=node --packages=external --external:vite --external:@vitejs/* --external:../vite.config* --bundle --format=esm --outdir=dist",
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "preview": "vite preview",
+    "generate-icons": "node scripts/generate-icons.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
@@ -67,6 +68,7 @@
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
+    "sharp": "^0.34.5",
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
     "vite-plugin-pwa": "^1.2.0"

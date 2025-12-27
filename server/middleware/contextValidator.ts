@@ -2,6 +2,26 @@ import { Request, Response, NextFunction } from 'express';
 import { validateCallContext } from '../schemas/contextSchema';
 
 // Lightweight sanitizer: keep only known keys and primitive-typed values where appropriate
+// Coerce numeric strings and boolean strings when possible
+function toNumberIfPossible(value: any) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed);
+  }
+  return value;
+}
+
+function toBooleanIfPossible(value: any) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const v = value.trim().toLowerCase();
+    if (v === 'true') return true;
+    if (v === 'false') return false;
+  }
+  return value;
+}
+
 function sanitizeContext(raw: any) {
   if (!raw || typeof raw !== 'object') return null;
 
@@ -13,7 +33,8 @@ function sanitizeContext(raw: any) {
     if (typeof up.user_id === 'string') clean.user_profile.user_id = up.user_id;
     if (typeof up.role === 'string') clean.user_profile.role = up.role;
     if (typeof up.speech_ability === 'string') clean.user_profile.speech_ability = up.speech_ability;
-    if (typeof up.accessibility_mode === 'boolean') clean.user_profile.accessibility_mode = up.accessibility_mode;
+    const coercedAccessibility = toBooleanIfPossible(up.accessibility_mode);
+    if (typeof coercedAccessibility === 'boolean') clean.user_profile.accessibility_mode = coercedAccessibility;
     if (typeof up.preferred_language === 'string') clean.user_profile.preferred_language = up.preferred_language;
     if (typeof up.tts_voice === 'string') clean.user_profile.tts_voice = up.tts_voice;
   }
@@ -40,8 +61,10 @@ function sanitizeContext(raw: any) {
     clean.trip_status = {};
     const t = raw.trip_status;
     if (typeof t.delivery_stage === 'string') clean.trip_status.delivery_stage = t.delivery_stage;
-    if (typeof t.distance_to_destination_meters === 'number') clean.trip_status.distance_to_destination_meters = t.distance_to_destination_meters;
-    if (typeof t.eta_minutes === 'number') clean.trip_status.eta_minutes = t.eta_minutes;
+    const coercedDistance = toNumberIfPossible(t.distance_to_destination_meters);
+    if (typeof coercedDistance === 'number' && !Number.isNaN(coercedDistance)) clean.trip_status.distance_to_destination_meters = coercedDistance;
+    const coercedEta = toNumberIfPossible(t.eta_minutes);
+    if (typeof coercedEta === 'number' && !Number.isNaN(coercedEta)) clean.trip_status.eta_minutes = coercedEta;
     if (typeof t.gps_status === 'string') clean.trip_status.gps_status = t.gps_status;
     if (typeof t.last_stop_reason === 'string') clean.trip_status.last_stop_reason = t.last_stop_reason;
   }
@@ -55,7 +78,8 @@ function sanitizeContext(raw: any) {
       clean.customer_context.call_reason_probability = {};
       Object.keys(c.call_reason_probability).forEach((k) => {
         const v = c.call_reason_probability[k];
-        if (typeof v === 'number') clean.customer_context.call_reason_probability[k] = v;
+        const coerced = toNumberIfPossible(v);
+        if (typeof coerced === 'number' && !Number.isNaN(coerced)) clean.customer_context.call_reason_probability[k] = coerced;
       });
     }
   }
@@ -119,8 +143,11 @@ export function validateCallContextMiddleware(rejectInvalid = false) {
       return next();
     }
 
-    // Still invalid
+    // Still invalid — log helpful debug info to identify mismatched fields (non-PII)
     console.warn('⚠️ [CONTEXT] Sanitization did not produce a valid context');
+    console.debug('⚠️ [CONTEXT] raw context snapshot:', JSON.stringify(raw, Object.keys(raw || {}).slice(0,50)));
+    console.debug('⚠️ [CONTEXT] sanitized snapshot:', JSON.stringify(sanitized, Object.keys(sanitized || {}).slice(0,50)));
+    console.debug('⚠️ [CONTEXT] zod error details:', sanitizedResult.error.format());
 
     if (rejectInvalid) {
       return res.status(400).json({ error: 'Invalid conversationContext' });

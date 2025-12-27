@@ -20,5 +20,9 @@ Local testing:
 
 Notes & Next steps:
 
-- Add dedicated app icons in `/public/icons` for better visuals (192x192 and 512x512 PNGs).
-- Tune caching rules for other assets as needed.
+- Added a placeholder SVG icon at `/public/icons/icon.svg` (replace with proper PNGs if you prefer). ✅
+- Caching rules updated: API (NetworkFirst), images (CacheFirst), fonts (StaleWhileRevalidate), and a navigation fallback are configured. ✅
+
+Notes:
+- For best results, replace `/public/icons/icon.svg` with proper PNG icons (192x192 and 512x512) and update `vite.config.ts` manifest entries if you do so.
+

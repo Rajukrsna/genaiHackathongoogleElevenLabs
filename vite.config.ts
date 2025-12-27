@@ -28,12 +28,12 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         icons: [
-          { src: '/src/assets/Onboarding1.png', sizes: '192x192', type: 'image/png' },
-          { src: '/src/assets/Onboarding2.png', sizes: '512x512', type: 'image/png' },
-          { src: '/src/assets/monitor-icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' }
+          { src: '/icons/icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: '/icons/icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
         ]
       },
       workbox: {
+        navigateFallback: '/index.html',
         runtimeCaching: [
           {
             urlPattern: ({url}) => url.pathname.startsWith('/api'),
@@ -42,8 +42,29 @@ export default defineConfig({
               cacheName: 'api-cache',
               expiration: { maxEntries: 50, maxAgeSeconds: 24 * 60 * 60 }
             }
+          },
+          {
+            // Cache images
+            urlPattern: ({request}) => request.destination === 'image',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'image-cache',
+              expiration: { maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60 }
+            }
+          },
+          {
+            // Cache fonts
+            urlPattern: ({request}) => request.destination === 'font',
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'font-cache',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 24 * 60 * 60 }
+            }
           }
         ]
+      },
+      devOptions: {
+        enabled: true
       }
     })
   ],

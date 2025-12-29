@@ -420,7 +420,7 @@ export default function CallPage() {
     // Remove the last outgoing message
     setMessages(prev => prev.filter(m => m.id !== lastOutgoingMessage.id));
     
-    // Remove last outgoing entry from structured call context
+    // Remove last outgoing on entry from structured call context
     setCallContext(prev => {
       const history = (prev._history || []).slice();
       // remove last 'you' entry

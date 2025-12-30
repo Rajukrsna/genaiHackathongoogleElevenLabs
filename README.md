@@ -109,5 +109,3 @@ Vite serves the frontend at http://localhost:5173.
 
 ---
 
-If you'd like, I can further tailor this README to include troubleshooting examples, developer workflows (VS Code tasks, debug config), or short descriptions of important files (e.g., `server/index.ts`, `src/`).
-
